@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+	<GenerateDocumentationFile>True</GenerateDocumentationFile>
+	<ExcludeFromCodeCoverage>true</ExcludeFromCodeCoverage>
+	<ExcludeByFile>$(MSBuildProjectDirectory)/Program.cs</ExcludeByFile>
+  </PropertyGroup>
+
+    <ItemGroup>
+	    <None Update="Controllers\*.cs">
+		    <ExcludeFromCodeCoverage>true</ExcludeFromCodeCoverage>
+	    </None>
+	    <None Update="Program.cs">
+		    <ExcludeFromCodeCoverage>true</ExcludeFromCodeCoverage>
+	    </None>
+    </ItemGroup>	
+	
+  <ItemGroup>
+    <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.4.0" />
+    <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" Version="1.5.1" />
+    <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Keys" Version="1.6.1" />
+    <PackageReference Include="Azure.Identity" Version="1.16.0" />
+    <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.8.0" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.AzureKeyVault" Version="3.1.24" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FiapSrvGames.Application\FiapSrvGames.Application.csproj" />
+    <ProjectReference Include="..\FiapSrvGames.Domain\FiapSrvGames.Domain.csproj" />
+    <ProjectReference Include="..\FiapSrvGames.Infrastructure\FiapSrvGames.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
