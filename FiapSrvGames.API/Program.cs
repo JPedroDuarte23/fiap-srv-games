@@ -97,7 +97,6 @@ builder.Services.AddSwaggerGen(opt =>
 {
     opt.SwaggerDoc("v1", new OpenApiInfo { Title = "FIAP Cloud Games - Games API", Version = "v1" });
 
-    /*
     opt.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -122,9 +121,6 @@ builder.Services.AddSwaggerGen(opt =>
            Array.Empty<string>()
        }
    });
-    */
-
-    //opt.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "FiapSrvGames.API.xml"));
 });
 
 
