@@ -19,7 +19,7 @@ jobs:
         run: echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
       - name: Build Docker image
-        run: docker build -t $DOCKER_USERNAME/fiap-srv-games:${{ github.sha }} .
+        run: docker build --platform linux/amd64 -t $DOCKER_USERNAME/fiap-srv-games:${{ github.sha }} .
 
       - name: Push Docker image
         run: |

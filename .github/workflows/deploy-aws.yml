@@ -1,0 +1,51 @@
+name: CD - Deploy to DockerHub and AWS ECS
+
+on:
+  workflow_call:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    env:
+      # Adapte o nome do repositório para cada projeto
+      # Ex: DOCKER_REPO: jpedroduarte23/fiap-srv-auth-manager
+      DOCKER_REPO: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}
+      ECS_CLUSTER: artistic-butterfly-mul6yt # O nome do seu cluster ECS
+      # O nome do serviço no ECS (ex: fiap-srv-auth-manager-service)
+      ECS_SERVICE: ${{ github.event.repository.name }}-task-service
+      # O nome da família da task definition (ex: fiap-srv-auth-manager-task)
+      ECS_TASK_DEFINITION: ${{ github.event.repository.name }}-task
+      # O nome do contêiner dentro da task definition (geralmente o mesmo do repo)
+      CONTAINER_NAME: ${{ github.event.repository.name }}
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Download and clean task definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query taskDefinition > task-definition-full.json
+          
+          # Limpa o JSON, removendo campos desnecessários que causam o erro.
+          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy, .tags, .enableFaultInjection)' task-definition-full.json > task-definition.json
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ env.DOCKER_REPO }}:${{ github.sha }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
