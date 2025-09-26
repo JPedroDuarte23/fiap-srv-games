@@ -46,4 +46,13 @@ public class GameRepository : IGameRepository
     {
         await _collection.ReplaceOneAsync(g => g.Id == game.Id, game);
     }
+
+    public async Task<IEnumerable<Game>> GetTopByOwnershipCountAsync(int count)
+    {
+        return await _collection
+            .Find(_ => true)                       
+            .SortBy(g => g.OwnershipCount)          
+            .Limit(count)                           
+            .ToListAsync();                         
+    }
 }

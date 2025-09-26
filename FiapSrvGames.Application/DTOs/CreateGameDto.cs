@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using FiapSrvGames.Domain.Enums;
 
 namespace FiapSrvGames.Application.DTOs;
 
@@ -26,5 +27,9 @@ public class CreateGameDto
     [Required(ErrorMessage = "A data de lançamento é obrigatória.")]
     [DataType(DataType.Date, ErrorMessage = "Data de lançamento inválida.")]
     public DateTime ReleaseDate { get; set; }
+
+    [Required(ErrorMessage = "O gênero do jogo é obrigatório.")]
+    public List<GameGenre> Genres { get; set; }
+    public List<GameTag> Tags { get; set; }
 
 }

@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="3.7.501" />
+    <PackageReference Include="Elastic.Clients.Elasticsearch" Version="8.13.10" />
     <PackageReference Include="Motor.Extensions.Http" Version="0.15.0" />
   </ItemGroup>
 

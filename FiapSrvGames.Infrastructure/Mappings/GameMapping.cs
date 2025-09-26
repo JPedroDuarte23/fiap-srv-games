@@ -32,6 +32,7 @@ public class GameMapping
                 map.MapMember(g => g.ReleaseDate).SetIsRequired(true);
                 map.MapMember(g => g.Genres).SetIsRequired(true);
                 map.MapMember(g => g.Tags).SetIsRequired(true);
+                map.MapMember(g => g.OwnershipCount).SetIsRequired(true);
             });
         }
     }

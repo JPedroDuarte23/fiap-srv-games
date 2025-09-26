@@ -10,5 +10,8 @@ namespace FiapSrvGames.Application.Interfaces
         Task<Game> GetByIdAsync(Guid id);
         Task CreateAsync(Guid publisherID, CreateGameDto dto);
         Task UpdateAsync(Guid id, UpdateGameDto dto);
+        Task<IReadOnlyCollection<Game>> SearchAsync(string queryText);
+
+        Task<IEnumerable<Game>> GetMostPopularGamesAsync(int count);
     }
 }

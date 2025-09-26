@@ -1,6 +1,7 @@
 using Amazon.SimpleSystemsManagement;
 using Amazon.SimpleSystemsManagement.Model;
 using AspNetCore.DataProtection.Aws.S3;
+using Elastic.Clients.Elasticsearch;
 using FiapCloudGames.Infrastructure.Configuration;
 using FiapSrvGames.Application.Interfaces;
 using FiapSrvGames.Application.Services;
@@ -13,6 +14,7 @@ using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
 using Serilog;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 [assembly: ExcludeFromCodeCoverage]
 
@@ -24,7 +26,8 @@ builder.Host.UseSerilog();
 // 1. Configura��o da AWS
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
 builder.Services.AddAWSService<IAmazonSimpleSystemsManagement>();
-builder.Services.AddAWSService<Amazon.S3.IAmazonS3>(); 
+builder.Services.AddAWSService<Amazon.S3.IAmazonS3>();  
+builder.Services.AddAWSService<Amazon.SimpleNotificationService.IAmazonSimpleNotificationService>();
 
 string mongoConnectionString;
 string jwtSigningKey;
@@ -53,6 +56,18 @@ if (!builder.Environment.IsDevelopment())
     });
     jwtSigningKey = jwtResponse.Parameter.Value;
 
+    var elasticParameterName = builder.Configuration["ParameterStore:ElasticSearchUrl"];
+    var elasticResponse = await ssmClient.GetParameterAsync(new GetParameterRequest
+    {
+        Name = elasticParameterName,
+        WithDecryption = true
+    });
+
+    var settings = new ElasticsearchClientSettings(new Uri(elasticResponse.Parameter.Value));
+    var client = new ElasticsearchClient(settings);
+
+    builder.Services.AddSingleton(client);
+
     // 2. Configura��o do Data Protection com AWS S3
     var s3Bucket = builder.Configuration["DataProtection:S3BucketName"];
     var s3KeyPrefix = builder.Configuration["DataProtection:S3KeyPrefix"];
@@ -77,6 +92,7 @@ builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<ILibraryService, LibraryService>();
+builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 
 // 4. Configura��o de Autentica��o e Autoriza��o
 builder.Services.ConfigureJwtBearer(builder.Configuration, jwtSigningKey);
@@ -87,6 +103,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();

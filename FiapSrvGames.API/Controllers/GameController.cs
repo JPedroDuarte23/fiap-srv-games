@@ -2,6 +2,7 @@
 using System.Security.Claims;
 using FiapSrvGames.Application.DTOs;
 using FiapSrvGames.Application.Interfaces;
+using FiapSrvGames.Application.Services;
 using FiapSrvGames.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -52,6 +53,28 @@ public class GameController : ControllerBase
     {
         await _service.UpdateAsync(id, dto);
         return Ok();
+    }
+
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchGames([FromQuery] string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return BadRequest("O parâmetro 'query' é obrigatório.");
+        }
+
+        var games = await _service.SearchAsync(query);
+        return Ok(games);
+    }
+
+    [HttpGet("popular")]
+    public async Task<IActionResult> GetPopularGames([FromQuery] int count = 5)
+    {
+        if (count <= 0) count = 5;
+        if (count > 50) count = 50;
+
+        var popularGames = await _service.GetMostPopularGamesAsync(count);
+        return Ok(popularGames);
     }
 
 }
