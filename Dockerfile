@@ -39,6 +39,8 @@ CORECLR_PROFILER_PATH=/usr/local/newrelic-dotnet-agent/libNewRelicProfiler.so
 
 RUN adduser --disabled-password --no-create-home appuser
 
+RUN chown -R appuser:appuser /usr/local/newrelic-dotnet-agent
+
 USER appuser
 
 COPY --from=build /app/publish .
