@@ -210,7 +210,7 @@ public class GameService : IGameService
             Id = Guid.NewGuid(),
             EntityId = gameId,
             EventType = action,
-            EventData = dto,
+            EventData = JsonSerializer.Serialize(dto),
             Timestamp = DateTime.UtcNow
         };
 

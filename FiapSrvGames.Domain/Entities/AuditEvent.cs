@@ -14,6 +14,6 @@ public class AuditEvent
     [BsonRepresentation(BsonType.String)]
     public Guid EntityId { get; set; }
     public string EventType { get; set; }
-    public object EventData { get; set; }
+    public string EventData { get; set; }
     public DateTime Timestamp { get; set; }
 }
