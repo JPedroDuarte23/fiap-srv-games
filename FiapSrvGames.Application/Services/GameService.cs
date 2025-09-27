@@ -8,6 +8,7 @@ using FiapSrvGames.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Elastic.Clients.Elasticsearch;
+using System.Text.Json.Serialization;
 
 namespace FiapSrvGames.Application.Services;
 
@@ -168,6 +169,25 @@ public class GameService : IGameService
         {
             _logger.LogError(ex, "Erro ao atualizar jogo {GameId}", id);
             throw new ModifyDatabaseException(ex.Message);
+        }
+
+        try
+        {
+            var serializerOptions = new JsonSerializerOptions { Converters = { new JsonStringEnumConverter() } };
+            var message = JsonSerializer.Serialize(game, serializerOptions);
+
+            var publishRequest = new PublishRequest
+            {
+                TopicArn = _topicArn,
+                Message = message
+            };
+
+            await _snsClient.PublishAsync(publishRequest);
+            _logger.LogInformation("Evento de ATUALIZAÇÃO para o jogo {GameName} publicado no SNS.", game.Title);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao publicar evento de ATUALIZAÇÃO do jogo no SNS.");
         }
     }
 
