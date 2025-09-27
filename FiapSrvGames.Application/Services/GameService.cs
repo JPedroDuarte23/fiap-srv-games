@@ -19,13 +19,24 @@ public class GameService : IGameService
     private readonly string _topicArn;
     private readonly IAmazonSimpleNotificationService _snsClient;
     private readonly ElasticsearchClient _esClient;
-    public GameService(IGameRepository gameRepository, IUserRepository userRepository, ILogger<GameService> logger, IAmazonSimpleNotificationService snsClient, IConfiguration configuration)
-    {
+    private readonly IAuditEventRepository _eventRepository;
+
+    public GameService(
+        IGameRepository gameRepository,
+        IUserRepository userRepository,
+        ILogger<GameService> logger, 
+        IAmazonSimpleNotificationService snsClient,
+        ElasticsearchClient esClient,
+        IConfiguration configuration, 
+        IAuditEventRepository eventRepository
+    ) {
         _gameRepository = gameRepository;
         _userRepository = userRepository;
         _logger = logger;
         _topicArn = configuration["SnsTopics:GameEventsTopicArn"];
+        _esClient = esClient;
         _snsClient = snsClient;
+        _eventRepository = eventRepository;
     }
 
     public async Task CreateAsync(Guid publisherId, CreateGameDto dto)
@@ -55,6 +66,7 @@ public class GameService : IGameService
         try
         {
             await _gameRepository.CreateAsync(game);
+            await LogAuditEventAsync("CreateGame", game.Id, dto);
             _logger.LogInformation("Jogo {Title} ({GameId}) criado com sucesso para publisher {PublisherId}", game.Title, game.Id, publisherId);
         }
         catch(Exception ex)
@@ -149,6 +161,7 @@ public class GameService : IGameService
         try
         {
             await _gameRepository.UpdateAsync(game);
+            await LogAuditEventAsync("UpdateGame", game.Id, dto);
             _logger.LogInformation("Jogo {GameId} atualizado com sucesso", id);
         }
         catch (Exception ex)
@@ -189,5 +202,27 @@ public class GameService : IGameService
 
         return popularGames;
     }
-}
 
+    private async Task LogAuditEventAsync(string action, Guid gameId, Object dto)
+    {
+        var auditEvent = new AuditEvent
+        {
+            Id = Guid.NewGuid(),
+            EntityId = gameId,
+            EventType = action,
+            EventData = dto,
+            Timestamp = DateTime.UtcNow
+        };
+
+       
+        try
+        {
+            await _eventRepository.CreateAsync(auditEvent);
+            _logger.LogInformation("Evento de auditoria registrado: {Action} para o jogo {GameId}.", action, gameId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao registrar evento de auditoria: {Action} para o jogo {GameId}.", action, gameId);
+        }
+    }
+}

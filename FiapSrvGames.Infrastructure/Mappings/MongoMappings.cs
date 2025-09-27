@@ -9,5 +9,6 @@ public static class MongoMappings
     {
         UserMapping.Configure();
         GameMapping.Configure();
+        AuditEventMapping.Configure();
     }
 }
