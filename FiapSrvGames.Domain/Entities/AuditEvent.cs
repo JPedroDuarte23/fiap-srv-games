@@ -9,6 +9,7 @@ namespace FiapSrvGames.Domain.Entities;
 public class AuditEvent
 {
     public Guid Id { get; set; }
+    [BsonRepresentation(BsonType.String)]
     public Guid EntityId { get; set; }
     public string EventType { get; set; }
     public object EventData { get; set; }
