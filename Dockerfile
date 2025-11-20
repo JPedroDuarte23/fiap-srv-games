@@ -1,9 +1,13 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 WORKDIR /app
 
-COPY FiapSrvGames.sln .
+RUN apk add --no-cache curl
 
+ARG NEW_RELIC_AGENT_VERSION=10.26.0
+
+RUN curl -L https://download.newrelic.com/dot_net_agent/previous_releases/${NEW_RELIC_AGENT_VERSION}/newrelic-dotnet-agent_${NEW_RELIC_AGENT_VERSION}_amd64.tar.gz | tar -C . -xz
+
+COPY FiapSrvGames.sln .
 COPY FiapSrvGames.API/*.csproj ./FiapSrvGames.API/
 COPY FiapSrvGames.Application/*.csproj ./FiapSrvGames.Application/
 COPY FiapSrvGames.Domain/*.csproj ./FiapSrvGames.Domain/
@@ -12,34 +16,25 @@ COPY FiapSrvGames.Test/*.csproj ./FiapSrvGames.Test/
 
 RUN dotnet restore
 
-COPY FiapSrvGames.API/ ./FiapSrvGames.API/
-COPY FiapSrvGames.Application/ ./FiapSrvGames.Application/
-COPY FiapSrvGames.Domain/ ./FiapSrvGames.Domain/
-COPY FiapSrvGames.Infrastructure/ ./FiapSrvGames.Infrastructure/
-COPY FiapSrvGames.Test/ ./FiapSrvGames.Test/
+COPY . .
+RUN dotnet publish FiapSrvGames.API/FiapSrvGames.API.csproj -c Release -o /app/publish /p:UseAppHost=false
 
-RUN dotnet publish FiapSrvGames.API/FiapSrvGames.API.csproj -c Release -o /app/publish
-
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
-
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
 WORKDIR /app
 
-# Install the agent
-RUN apt-get update && apt-get install -y wget ca-certificates gnupg \
-&& echo 'deb [signed-by=/usr/share/keyrings/newrelic-apt.gpg] http://apt.newrelic.com/debian/ newrelic non-free' | tee /etc/apt/sources.list.d/newrelic.list \
-&& wget -O- https://download.newrelic.com/NEWRELIC_APT_2DAD550E.public | gpg --import --batch --no-default-keyring --keyring /usr/share/keyrings/newrelic-apt.gpg \
-&& apt-get update \
-&& apt-get install -y newrelic-dotnet-agent
+RUN apk add --no-cache icu-libs
 
-# Enable the agent
+COPY --from=build /app/newrelic-dotnet-agent /usr/local/newrelic-dotnet-agent
+
 ENV CORECLR_ENABLE_PROFILING=1 \
-CORECLR_PROFILER={36032161-FFC0-4B61-B559-F6C5D41BAE5A} \
-CORECLR_NEWRELIC_HOME=/usr/local/newrelic-dotnet-agent \
-CORECLR_PROFILER_PATH=/usr/local/newrelic-dotnet-agent/libNewRelicProfiler.so
+    CORECLR_PROFILER={36032161-FFC0-4B61-B559-F6C5D41BAE5A} \
+    CORECLR_NEWRELIC_HOME=/usr/local/newrelic-dotnet-agent \
+    CORECLR_PROFILER_PATH=/usr/local/newrelic-dotnet-agent/libNewRelicProfiler.so \
+    CORECLR_PROFILER={36032161-FFC0-4B61-B559-F6C5D41BAE5A} \
+    NEW_RELIC_APP_NAME="FiapSrvGames"
 
-RUN adduser --disabled-password --no-create-home appuser
-
-RUN chown -R appuser:appuser /usr/local/newrelic-dotnet-agent
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app && chown -R appuser:appgroup /usr/local/newrelic-dotnet-agent
 
 USER appuser
 

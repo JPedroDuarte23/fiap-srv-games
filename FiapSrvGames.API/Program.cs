@@ -31,6 +31,7 @@ builder.Services.AddAWSService<Amazon.SimpleNotificationService.IAmazonSimpleNot
 
 string mongoConnectionString;
 string jwtSigningKey;
+string elasticSearchUrl;
 string databaseName = builder.Configuration["MongoDbSettings:DatabaseName"]!;
 
 if (!builder.Environment.IsDevelopment())
@@ -62,11 +63,8 @@ if (!builder.Environment.IsDevelopment())
         Name = elasticParameterName,
         WithDecryption = true
     });
+    elasticSearchUrl = elasticResponse.Parameter.Value;
 
-    var settings = new ElasticsearchClientSettings(new Uri(elasticResponse.Parameter.Value));
-    var client = new ElasticsearchClient(settings);
-
-    builder.Services.AddSingleton(client);
 
     // 2. Configura��o do Data Protection com AWS S3
     var s3Bucket = builder.Configuration["DataProtection:S3BucketName"];
@@ -82,7 +80,14 @@ else
     Log.Information("Ambiente de Desenvolvimento. Usando appsettings.json.");
     mongoConnectionString = builder.Configuration.GetConnectionString("MongoDbConnection")!;
     jwtSigningKey = builder.Configuration["Jwt:DevKey"]!;
-}
+    elasticSearchUrl = builder.Configuration["ElasticSearch:Url"]!;
+    
+}  
+
+var settings = new ElasticsearchClientSettings(new Uri(elasticSearchUrl));
+var client = new ElasticsearchClient(settings);
+
+builder.Services.AddSingleton(client);
 
 // 3. Configura��o do MongoDB e Reposit�rios
 builder.Services.AddSingleton<IMongoClient>(sp => new MongoClient(mongoConnectionString));
