@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'fiap-games-api'
+    metrics_path: /metrics
+    static_configs:
+      # 'fiap-srv-games' deve ser o nome do serviço no docker-compose
+      # ou 'localhost' se estiver rodando fora do Docker
+      - targets: ['fiap-srv-games:8080']

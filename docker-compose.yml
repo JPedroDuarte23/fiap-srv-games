@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # --- SUA APLICAÇÃO (.NET) ---
+  fiap-srv-games:
+    container_name: fiap-srv-games
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      # Sobrescreve 'localhost' para o nome do serviço do container
+      - ConnectionStrings__MongoDbConnection=mongodb://mongo:27017
+      - ElasticSearch__Url=http://elasticsearch:9200
+      # Desativa o APM localmente para não gerar ruído
+      - CORECLR_ENABLE_PROFILING=0
+      - NEW_RELIC_LICENSE_KEY=
+    depends_on:
+      - mongo
+      - elasticsearch
+    networks:
+      - fiap-network
+
+  # --- BANCO DE DADOS (MongoDB) ---
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - fiap-network
+
+  # --- BUSCA & RECOMENDAÇÃO (Elasticsearch) ---
+  elasticsearch:
+    image: elasticsearch:8.11.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" # Limita memória
+    ports:
+      - "9200:9200"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    networks:
+      - fiap-network
+
+  # --- MONITORAMENTO (Prometheus) ---
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml # Lê sua config
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - fiap-srv-games
+    networks:
+      - fiap-network
+
+  # --- VISUALIZAÇÃO (Grafana) ---
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin # Senha inicial
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - fiap-network
+
+# Volumes para persistir dados mesmo se desligar os containers
+volumes:
+  mongo_data:
+  elastic_data:
+  prometheus_data:
+  grafana_data:
+
+# Rede interna para eles se enxergarem pelo nome
+networks:
+  fiap-network:
+    driver: bridge
