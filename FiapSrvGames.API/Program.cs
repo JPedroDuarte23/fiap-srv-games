@@ -16,6 +16,7 @@ using Serilog;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using Prometheus;
+using Amazon.SQS;
 
 [assembly: ExcludeFromCodeCoverage]
 
@@ -94,6 +95,8 @@ builder.Services.AddSingleton(client);
 builder.Services.AddSingleton<IMongoClient>(sp => new MongoClient(mongoConnectionString));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(databaseName));
 MongoMappings.ConfigureMappings();
+
+builder.Services.AddAWSService<IAmazonSQS>();
 
 builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
