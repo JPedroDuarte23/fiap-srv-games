@@ -17,6 +17,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using Prometheus;
 using Amazon.SQS;
+using FiapSrvGames.API.Workers;
 
 [assembly: ExcludeFromCodeCoverage]
 
@@ -104,6 +105,7 @@ builder.Services.AddScoped<IAuditEventRepository, AuditEventRepository>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<ILibraryService, LibraryService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
+builder.Services.AddHostedService<LibraryUpdateWorker>();
 
 // 4. Configura��o de Autentica��o e Autoriza��o
 builder.Services.ConfigureJwtBearer(builder.Configuration, jwtSigningKey);
