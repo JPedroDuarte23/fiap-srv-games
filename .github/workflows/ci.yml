@@ -27,6 +27,11 @@ jobs:
         run: dotnet tool install --global dotnet-sonarscanner
 
       - name: Begin SonarCloud Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PR_KEY: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_BASE: ${{ github.base_ref }}
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             dotnet sonarscanner begin \
@@ -34,9 +39,9 @@ jobs:
               /o:"jpedroduarte23" \
               /d:sonar.login="$SONAR_TOKEN" \
               /d:sonar.coverageReportPaths="./coverage-report/SonarQube.xml" \
-              /d:sonar.pullrequest.key="${{ github.event.pull_request.number }}" \
-              /d:sonar.pullrequest.branch="${{ github.head_ref }}" \
-              /d:sonar.pullrequest.base="${{ github.base_ref }}"
+              /d:sonar.pullrequest.key="$PR_KEY" \
+              /d:sonar.pullrequest.branch="$PR_BRANCH" \
+              /d:sonar.pullrequest.base="$PR_BASE"
           else
             dotnet sonarscanner begin \
               /k:"JPedroDuarte23_fiap-srv-games" \

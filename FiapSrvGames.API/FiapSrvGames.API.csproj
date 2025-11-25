@@ -16,6 +16,12 @@
 	    <None Update="Program.cs">
 		    <ExcludeFromCodeCoverage>true</ExcludeFromCodeCoverage>
 	    </None>
+		<None Update="Controllers/RecommendationController.cs">
+			<ExcludeFromCodeCoverage>true</ExcludeFromCodeCoverage>
+		</None>
+		<None Update="Workers/LibraryUpdateWorker.cs">
+			<ExcludeFromCodeCoverage>true</ExcludeFromCodeCoverage>
+		</None>
     </ItemGroup>	
 	
   <ItemGroup>
