@@ -9,7 +9,7 @@ using System.Text.Json;
 public class LibraryUpdateWorker : BackgroundService
 {
     private readonly IAmazonSQS _sqsClient;
-    private readonly IServiceProvider _serviceProvider; // Necessário para criar escopo
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<LibraryUpdateWorker> _logger;
     private readonly string _queueUrl;
 
@@ -33,14 +33,15 @@ public class LibraryUpdateWorker : BackgroundService
                 {
                     QueueUrl = _queueUrl,
                     MaxNumberOfMessages = 10,
-                    WaitTimeSeconds = 20
+                    WaitTimeSeconds = 20,
+                    VisibilityTimeout = 30
                 };
 
                 var response = await _sqsClient.ReceiveMessageAsync(request, stoppingToken);
 
                 foreach (var message in response.Messages)
                 {
-                    await ProcessMessageAsync(message);
+                    await ProcessSingleMessageAsync(message);
                 }
             }
             catch (Exception ex)
@@ -51,31 +52,35 @@ public class LibraryUpdateWorker : BackgroundService
         }
     }
 
-    private async Task ProcessMessageAsync(Message message)
+    private async Task ProcessSingleMessageAsync(Message message)
     {
         try
         {
-            var snsEnvelope = JsonDocument.Parse(message.Body);
-            var innerMessage = snsEnvelope.RootElement.GetProperty("Message").GetString();
-
-            var checkoutData = JsonSerializer.Deserialize<CheckoutEventDto>(innerMessage);
-
-            if (checkoutData != null)
+            using (var scope = _serviceProvider.CreateScope())
             {
-                using (var scope = _serviceProvider.CreateScope())
+                var libraryService = scope.ServiceProvider.GetRequiredService<ILibraryService>();
+
+                // 1. Parse da mensagem (Desembrulhando o JSON do SNS)
+                var snsEnvelope = JsonDocument.Parse(message.Body);
+                var innerMessageJson = snsEnvelope.RootElement.GetProperty("Message").GetString();
+
+                var checkoutEvent = JsonSerializer.Deserialize<CheckoutEventDto>(innerMessageJson);
+
+                if (checkoutEvent != null)
                 {
-                    var libraryService = scope.ServiceProvider.GetRequiredService<ILibraryService>();
+                    // 2. Tenta executar a lógica de negócio (Mongo)
+                    await libraryService.AddToLibraryAsync(checkoutEvent.UserId, checkoutEvent.GameIds);
 
-                    await libraryService.AddToLibraryAsync(checkoutData.UserId, checkoutData.GameIds);
+                    // 3. SUCESSO: Só deletamos a mensagem SE a linha de cima funcionar
+                    await _sqsClient.DeleteMessageAsync(_queueUrl, message.ReceiptHandle);
+
+                    _logger.LogInformation("Fulfillment concluído para User {UserId}. Jogos adicionados.", checkoutEvent.UserId);
                 }
-
-                await _sqsClient.DeleteMessageAsync(_queueUrl, message.ReceiptHandle);
-                _logger.LogInformation($"Jogos adicionados para usuário {checkoutData.UserId}");
             }
         }   
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Falha ao processar mensagem específica.");
+            _logger.LogError(ex, "Falha ao processar mensagem {MessageId}. Mensagem retornará para fila (Retry).", message.MessageId);
         }
     }
 }
