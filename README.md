@@ -1,6 +1,6 @@
 # FiapSrvGames - API de Gerenciamento de Jogos
 
-## 📖 Sobre o Projeto
+## 📖 Sobre o Projeto 
 
 **FiapSrvGames** é uma API RESTful desenvolvida em .NET 8 para gerenciar uma plataforma de jogos. Ela permite que *Publishers* gerenciem seus jogos e que *Players* gerenciem suas bibliotecas de jogos, além de oferecer funcionalidades de busca e recomendação.
 
