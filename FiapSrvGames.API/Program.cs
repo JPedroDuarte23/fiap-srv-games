@@ -1,8 +1,8 @@
-using Amazon.SimpleSystemsManagement;
-using Amazon.SimpleSystemsManagement.Model;
+using Amazon.SQS;
 using AspNetCore.DataProtection.Aws.S3;
 using Elastic.Clients.Elasticsearch;
 using FiapCloudGames.Infrastructure.Configuration;
+using FiapSrvGames.API.Workers;
 using FiapSrvGames.Application.Interfaces;
 using FiapSrvGames.Application.Services;
 using FiapSrvGames.Infrastructure.Configuration;
@@ -12,12 +12,10 @@ using FiapSrvGames.Infrastructure.Repository;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
+using Prometheus;
 using Serilog;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
-using Prometheus;
-using Amazon.SQS;
-using FiapSrvGames.API.Workers;
 
 [assembly: ExcludeFromCodeCoverage]
 
@@ -26,78 +24,45 @@ var builder = WebApplication.CreateBuilder(args);
 Log.Logger = SerilogConfiguration.ConfigureSerilog();
 builder.Host.UseSerilog();
 
-// 1. Configura��o da AWS
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
-builder.Services.AddAWSService<IAmazonSimpleSystemsManagement>();
 builder.Services.AddAWSService<Amazon.S3.IAmazonS3>();  
 builder.Services.AddAWSService<Amazon.SimpleNotificationService.IAmazonSimpleNotificationService>();
+builder.Services.AddAWSService<IAmazonSQS>();
 
-string mongoConnectionString;
-string jwtSigningKey;
-string elasticSearchUrl;
-string databaseName = builder.Configuration["MongoDbSettings:DatabaseName"]!;
+var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDbConnection")
+    ?? throw new InvalidOperationException("Connection string MongoDbConnection not found.");
+
+var jwtSigningKey = builder.Configuration["Jwt:SigningKey"] 
+    ?? builder.Configuration["Jwt:DevKey"] 
+    ?? throw new InvalidOperationException("JWT Signing Key not found.");
+
+var elasticSearchUrl = builder.Configuration["ElasticSearch:Url"]
+    ?? throw new InvalidOperationException("ElasticSearch Url not found.");
+
+var databaseName = builder.Configuration["MongoDbSettings:DatabaseName"] 
+    ?? throw new InvalidOperationException("Database Name not found.");
 
 if (!builder.Environment.IsDevelopment())
 {
-    Log.Information("Ambiente de Produ��o. Buscando segredos do AWS Parameter Store.");
-    var ssmClient = new AmazonSimpleSystemsManagementClient();
-
-    // Busca a Connection String do MongoDB
-    var mongoParameterName = builder.Configuration["ParameterStore:MongoConnectionString"];
-    var mongoResponse = await ssmClient.GetParameterAsync(new GetParameterRequest
-    {
-        Name = mongoParameterName,
-        WithDecryption = true
-    });
-    mongoConnectionString = mongoResponse.Parameter.Value;
-
-    // Busca a Chave de Assinatura do JWT
-    var jwtParameterName = builder.Configuration["ParameterStore:JwtSigningKey"];
-    var jwtResponse = await ssmClient.GetParameterAsync(new GetParameterRequest
-    {
-        Name = jwtParameterName,
-        WithDecryption = true
-    });
-    jwtSigningKey = jwtResponse.Parameter.Value;
-
-    var elasticParameterName = builder.Configuration["ParameterStore:ElasticSearchUrl"];
-    var elasticResponse = await ssmClient.GetParameterAsync(new GetParameterRequest
-    {
-        Name = elasticParameterName,
-        WithDecryption = true
-    });
-    elasticSearchUrl = elasticResponse.Parameter.Value;
-
-
-    // 2. Configura��o do Data Protection com AWS S3
     var s3Bucket = builder.Configuration["DataProtection:S3BucketName"];
     var s3KeyPrefix = builder.Configuration["DataProtection:S3KeyPrefix"];
-    var s3DataProtectionConfig = new S3XmlRepositoryConfig(s3Bucket) { KeyPrefix = s3KeyPrefix };
-
-    builder.Services.AddDataProtection()
-        .SetApplicationName("FiapSrvGames")
-        .PersistKeysToAwsS3(s3DataProtectionConfig);
-}
-else
-{
-    Log.Information("Ambiente de Desenvolvimento. Usando appsettings.json.");
-    mongoConnectionString = builder.Configuration.GetConnectionString("MongoDbConnection")!;
-    jwtSigningKey = builder.Configuration["Jwt:DevKey"]!;
-    elasticSearchUrl = builder.Configuration["ElasticSearch:Url"]!;
     
-}  
+    if (!string.IsNullOrEmpty(s3Bucket) && !string.IsNullOrEmpty(s3KeyPrefix))
+    {
+        var s3DataProtectionConfig = new S3XmlRepositoryConfig(s3Bucket) { KeyPrefix = s3KeyPrefix };
+        builder.Services.AddDataProtection()
+            .SetApplicationName("FiapSrvGames")
+            .PersistKeysToAwsS3(s3DataProtectionConfig);
+    }
+}
 
 var settings = new ElasticsearchClientSettings(new Uri(elasticSearchUrl));
 var client = new ElasticsearchClient(settings);
-
 builder.Services.AddSingleton(client);
 
-// 3. Configura��o do MongoDB e Reposit�rios
 builder.Services.AddSingleton<IMongoClient>(sp => new MongoClient(mongoConnectionString));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(databaseName));
 MongoMappings.ConfigureMappings();
-
-builder.Services.AddAWSService<IAmazonSQS>();
 
 builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -107,11 +72,9 @@ builder.Services.AddScoped<ILibraryService, LibraryService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddHostedService<LibraryUpdateWorker>();
 
-// 4. Configura��o de Autentica��o e Autoriza��o
 builder.Services.ConfigureJwtBearer(builder.Configuration, jwtSigningKey);
 builder.Services.AddAuthorization();
 
-// -- Resto da configura��o (Controllers, Swagger, etc.) --
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
