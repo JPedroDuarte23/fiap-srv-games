@@ -78,7 +78,6 @@ builder.Services.AddHostedService<LibraryUpdateWorker>();
 builder.Services.ConfigureJwtBearer(builder.Configuration, jwtSigningKey);
 builder.Services.AddAuthorization();
 
-BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
