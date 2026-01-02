@@ -11,6 +11,9 @@ using FiapSrvGames.Infrastructure.Middleware;
 using FiapSrvGames.Infrastructure.Repository;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.OpenApi.Models;
+using MongoDB.Bson.Serialization.Serializers;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using Prometheus;
 using Serilog;
@@ -74,6 +77,8 @@ builder.Services.AddHostedService<LibraryUpdateWorker>();
 
 builder.Services.ConfigureJwtBearer(builder.Configuration, jwtSigningKey);
 builder.Services.AddAuthorization();
+
+BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
